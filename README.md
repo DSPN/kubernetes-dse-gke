@@ -24,7 +24,7 @@ $ kubectl create configmap opsc-ssl-config --from-file=common/opscenter/conf-dir
 ```
 
 #### 2. Create your own OpsCenter admin's password using K8 secret
-You can update the [opsc-secrets.yaml file's admin_password's value](https://github.com/DSPN/kubernetes-dse/blob/dev-201808/common/secrets/opsc-secrets.yaml#L7) with your own base64 encoded password. Use this command **$ echo -n '\<your own password\>' | base64** to generate your base64 encoded password.
+You can update the [opsc-secrets.yaml file's admin_password's value](https://github.com/DSPN/kubernetes-dse-gke/blob/master/common/secrets/opsc-secrets.yaml#L7) with your own base64 encoded password. Use this command **$ echo -n '\<your own password\>' | base64** to generate your base64 encoded password.
 ```
 $ kubectl apply -f common/secrets/opsc-secrets.yaml 
 ```
