@@ -153,6 +153,7 @@ spec:
         env:
         - name: OPSC_DNS
           value: opscenter-0.opscenter.default.svc.cluster.local
+      terminationGracePeriodSeconds: 12000
       containers:
       - name: dse
         image: datastax/dse-server:6.0.0-openjdk8
