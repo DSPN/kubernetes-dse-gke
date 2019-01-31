@@ -5,7 +5,7 @@ This project provides a set of sample Kubernetes yamls to provision DataStax Ent
 
 #### Prerequisites:
 * Tools including wget, kubectl have already been installed on your machine to execute our yamls.
-* Kubernetes server's version is 1.8.x or higher. 
+* Kubernetes server's version is 1.9.x or higher. 
 
 #### 1. Create required configmaps for DataStax Enterprise Statefulset and DataStax Enterprise OpsCenter Statefulset
 Docker images provided by DataStax include a startup script that swaps DataStax Enterprise (DSE) and OpsCenter configuration files found in the /config volume directory with the configuration file in the default location on the container. In a Kubernetes deployment, it is enabled through Kubernetes ConfigMap volume to inject configuration data into Pods. 
