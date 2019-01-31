@@ -30,11 +30,14 @@ spec:
   selector:
     app: opscenter
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: opscenter
 spec:
+  selector:
+    matchLabels:
+      app: opscenter
   serviceName: "opscenter"
   replicas: 1
   podManagementPolicy: OrderedReady
@@ -103,11 +106,14 @@ spec:
   selector:
     app: dse
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: dse
 spec:
+  selector:
+    matchLabels:
+      app: dse
   serviceName: "dse"
   replicas: 3
   podManagementPolicy: OrderedReady
