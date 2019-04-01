@@ -38,7 +38,7 @@ $ kubectl apply -f local/dse-suite.yaml
 ```
 
 ##### 3.2 Running DSE + OpsCenter on Google Kubernetes Engine (GKE) 
-Follow the sample commands below to spin up a GKE cluster if you do not have one already. There are minimum cluster requirements that MUST be met for the deployment to succeed. Please ensure you have a GKE cluster meeting these minimums before deploying. The requirements are >**5 nodes of instance type n1-standard-4 with at least 60GB of disk size for each DSE node**.
+Follow the sample commands below to spin up a GKE cluster if you do not have one already. There are minimum cluster requirements that MUST be met for the deployment to succeed. Please ensure you have a GKE cluster meeting these minimums before deploying. The requirements are >=**5 nodes of instance type n1-standard-4 with at least 60GB of disk size for each DSE node**.
 Run the following command to create a similar GKE cluster:
 ```
 $ gcloud container clusters create k8-10-9-3-gke-n1-std-4 --cluster-version=1.10.9-gke.3 --zone us-west1-b --machine-type n1-standard-4  --num-nodes 5
