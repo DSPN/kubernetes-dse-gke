@@ -238,6 +238,9 @@ spec:
           periodSeconds: 30
           failureThreshold: 10
         lifecycle:
+          postStart:
+            exec:
+              command: ['/bin/sh', '-c', 'until cqlsh -e "describe cluster"; do echo waiting for DSE Startup Complete; sleep 10; done;']
           preStop:
             exec:
               command: ["/bin/sh", "-c", "exec nodetool decommission"]
