@@ -1,96 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: opscenter-ext-lb
+  name: dse-ext-lb
   labels:
-    app: opscenter
+    app: dse
 spec:
   type: LoadBalancer
   ports:
-  - port: 8888
-    name: opsc-gui-port
-  - port: 8443
-    name: opsc-secure-port
+  - port: 9042
+    name: cql-port
   selector:
-    app: opscenter
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: opscenter
-  labels:
-    app: opscenter
-spec:
-  ports:
-  - port: 8443
-    name: opsc-secure-port
-  - port: 61620
-    name: port-61620
-  clusterIP: None
-  selector:
-    app: opscenter
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: opscenter
-spec:
-  selector:
-    matchLabels:
-      app: opscenter
-  serviceName: "opscenter"
-  replicas: 1
-  podManagementPolicy: OrderedReady
-  updateStrategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        app: opscenter
-    spec:
-      securityContext:
-        fsGroup: 998
-      containers:
-        - name: opscenter
-          image: gcr.io/datastax-public/dse-opscenter:6.5.3
-          imagePullPolicy: IfNotPresent
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/update_admin_password.sh"]
-          resources:
-            requests:
-              cpu: "2"
-              memory: "4000Mi"
-          env:
-          - name: DS_LICENSE
-            value: accept
-          - name: OPSC_ADMIN_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: opsc
-                key: admin_password 
-          ports:
-          - containerPort: 8888
-            name: opsc-gui-port
-          - containerPort: 61620
-            name: port-61620
-          volumeMounts:
-          - name: config-volume
-            mountPath: /config
-          - name: config-clusters-volume
-            mountPath: /opt/opscenter/conf/clusters
-          - name: ssl-store-volume
-            mountPath: /var/lib/opscenter/ssl
-      volumes:
-      - name: config-volume
-        configMap:
-          name: opsc-config
-      - name: ssl-store-volume
-        configMap:
-          name: opsc-ssl-config
-      - name: config-clusters-volume
-        emptyDir: {}
+    app: dse
 ---
 apiVersion: v1
 kind: Service
@@ -102,6 +22,8 @@ spec:
   ports:
   - port: 9042
     name: cql-port
+  - port: 9103
+    name: port-9103
   clusterIP: None
   selector:
     app: dse
@@ -136,17 +58,10 @@ spec:
                 values:
                 - dse
             topologyKey: kubernetes.io/hostname
-      initContainers:
-      - name: init-opsc-up
-        image: gcr.io/datastax-public/dse-curl:1.0
-        command: ['sh', '-c', 'until curl -k https://${OPSC_DNS}:8443; do echo waiting for OPSC; sleep 5; done;']
-        env:
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
       terminationGracePeriodSeconds: 12000
       containers:
       - name: dse
-        image: datastax/dse-server:6.0.0-openjdk8
+        image: datastax/dse-server:6.7.1
         args: ["-s", "-k", "-g"]
         imagePullPolicy: IfNotPresent
         resources:
@@ -159,15 +74,13 @@ spec:
         - name: SEEDS
           value: dse-0.dse.default.svc.cluster.local,dse-1.dse.default.svc.cluster.local,dse-2.dse.default.svc.cluster.local
         - name: CLUSTER_NAME
-          value: "My_Cluster"
+          value: "Test_Cluster"
         - name: NUM_TOKENS
           value: "64"
         - name: DC
           value: "DC-1"
         - name: RACK
           value: "rack-1"
-        - name: OPSCENTER_IP
-          value: opscenter-0.opscenter.default.svc.cluster.local
         - name: SNITCH
           value: GossipingPropertyFileSnitch
         ports:
@@ -197,6 +110,8 @@ spec:
           name: spark-w-web
         - containerPort: 8090
           name: spark-job
+        - containerPort: 9103
+          name: port-9103
         - containerPort: 9999
           name: spark-job-jmx
         - containerPort: 18080
@@ -214,6 +129,8 @@ spec:
           mountPath: /var/lib/cassandra
         - name: config-volume
           mountPath: /config
+        - name: prometheus-volume
+          mountPath: /opt/dse/resources/dse/collectd/etc/collectd
         livenessProbe:
           tcpSocket:
             port: 9042
@@ -222,9 +139,9 @@ spec:
           periodSeconds: 30
           failureThreshold: 10
         lifecycle:
-          postStart:
-            exec:
-              command: ['/bin/sh', '-c', 'until cqlsh -e "describe cluster"; do echo waiting for DSE Startup Complete; sleep 10; done;']
+          #postStart:
+          #  exec:
+          #    command: ['/bin/sh', '-c', 'until cqlsh -e "describe cluster"; do echo waiting for DSE Startup Complete; sleep 10; done;']
           preStop:
             exec:
               command: ["/bin/sh", "-c", "exec nodetool decommission"]
@@ -232,42 +149,8 @@ spec:
       - name: config-volume
         configMap:
           name: dse-config
+      - name: prometheus-volume
+        configMap:
+          name: prometheus-conf-config
       - name: dse-data
         emptyDir: {}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: dse-cluster-init-job
-  labels:
-    app: dse
-spec:
-  template:
-    spec:
-      initContainers:
-      - name: init-opsc-up
-        image: gcr.io/datastax-public/dse-curl:1.0
-        command: ['sh', '-c', 'until curl -k https://${OPSC_DNS}:8443; do echo waiting for OPSC; sleep 5; done;']
-        env:
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
-      containers:
-      - name: dse-cluster-init
-        image: gcr.io/datastax-public/dse-cluster-init:6.5.3
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: SEED_DNS
-          value: dse-0.dse.default.svc.cluster.local,dse-1.dse.default.svc.cluster.local,dse-2.dse.default.svc.cluster.local
-        - name: CLUSTER_NAME
-          value: "My_Cluster"
-        - name: CLUSTER_SIZE
-          value: "3"
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
-        - name: OPSC_ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: opsc
-              key: admin_password
-      restartPolicy: Never
-  backoffLimit: 8

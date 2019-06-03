@@ -1,0 +1,10 @@
+[
+  {
+    "targets": [ 
+      "dse-0.dse.default.svc.cluster.local:9103" 
+    ],
+    "labels": {
+      "cluster": "Test_Cluster"
+    }
+  }
+]

@@ -9,104 +9,16 @@ parameters:
 apiVersion: v1
 kind: Service
 metadata:
-  name: opscenter-ext-lb
+  name: dse-ext-lb
   labels:
-    app: opscenter
+    app: dse
 spec:
   type: LoadBalancer
   ports:
-  - port: 8443
-    name: opsc-secure-port
+  - port: 9042
+    name: cql-port
   selector:
-    app: opscenter
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: opscenter
-  labels:
-    app: opscenter
-spec:
-  ports:
-  - port: 8888
-    name: opsc-gui-port
-  - port: 8443
-    name: opsc-secure-port
-  - port: 61620
-    name: port-61620
-  clusterIP: None
-  selector:
-    app: opscenter
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: opscenter
-spec:
-  selector:
-    matchLabels:
-      app: opscenter
-  serviceName: "opscenter"
-  replicas: 1
-  podManagementPolicy: OrderedReady
-  updateStrategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        app: opscenter
-    spec:
-      securityContext:
-        fsGroup: 998
-      containers:
-        - name: opscenter
-          image: gcr.io/datastax-public/dse-opscenter:6.5.3
-          imagePullPolicy: IfNotPresent
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/update_admin_password.sh"]
-          resources:
-            requests:
-              cpu: "2"
-              memory: "4000Mi"
-          env:
-          - name: DS_LICENSE
-            value: accept
-          - name: OPSC_ADMIN_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: opsc
-                key: admin_password 
-          ports:
-          - containerPort: 8888
-            name: opsc-gui-port
-          - containerPort: 61620
-            name: port-61620
-          volumeMounts:
-          - name: config-volume
-            mountPath: /config
-          - name: config-clusters-volume
-            mountPath: /opt/opscenter/conf/clusters
-          - name: ssl-store-volume
-            mountPath: /var/lib/opscenter/ssl
-      volumes:
-      - name: config-volume
-        configMap:
-          name: opsc-config
-      - name: ssl-store-volume
-        configMap:
-          name: opsc-ssl-config
-  volumeClaimTemplates:
-  - metadata:
-      name: config-clusters-volume
-      annotations:
-        volume.beta.kubernetes.io/storage-class: fast
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 1Gi
+    app: dse
 ---
 apiVersion: v1
 kind: Service
@@ -152,17 +64,10 @@ spec:
                 values:
                 - dse
             topologyKey: kubernetes.io/hostname
-      initContainers:
-      - name: init-opsc-up
-        image: gcr.io/datastax-public/dse-curl:1.0
-        command: ['sh', '-c', 'until curl -k https://${OPSC_DNS}:8443; do echo waiting for OPSC; sleep 5; done;']
-        env:
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
       terminationGracePeriodSeconds: 12000
       containers:
       - name: dse
-        image: datastax/dse-server:6.0.0-openjdk8
+        image: datastax/dse-server:6.7.1
         args: ["-s", "-k", "-g"]
         imagePullPolicy: IfNotPresent
         resources:
@@ -182,8 +87,6 @@ spec:
           value: "DC-1"
         - name: RACK
           value: "rack-1"
-        - name: OPSCENTER_IP
-          value: opscenter-0.opscenter.default.svc.cluster.local
         - name: SNITCH
           value: GossipingPropertyFileSnitch
         ports:
@@ -251,47 +154,9 @@ spec:
   volumeClaimTemplates:
   - metadata:
       name: dse-data
-      annotations:
-        volume.beta.kubernetes.io/storage-class: fast
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast
       resources:
         requests:
           storage: 40Gi
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: dse-cluster-init-job
-  labels:
-    app: dse
-spec:
-  template:
-    spec:
-      initContainers:
-      - name: init-opsc-up
-        image: gcr.io/datastax-public/dse-curl:1.0
-        command: ['sh', '-c', 'until curl -k https://${OPSC_DNS}:8443; do echo waiting for OPSC; sleep 5; done;']
-        env:
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
-      containers:
-      - name: dse-cluster-init
-        image: gcr.io/datastax-public/dse-cluster-init:6.5.3
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: SEED_DNS
-          value: dse-0.dse.default.svc.cluster.local,dse-1.dse.default.svc.cluster.local,dse-2.dse.default.svc.cluster.local
-        - name: CLUSTER_NAME
-          value: "My_Cluster"
-        - name: CLUSTER_SIZE
-          value: "3"
-        - name: OPSC_DNS
-          value: opscenter-0.opscenter.default.svc.cluster.local
-        - name: OPSC_ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: opsc
-              key: admin_password
-      restartPolicy: Never
-  backoffLimit: 8
