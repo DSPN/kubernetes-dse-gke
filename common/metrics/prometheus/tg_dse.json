@@ -1,7 +1,11 @@
 [
   {
     "targets": [ 
-      "dse-0.dse.default.svc.cluster.local:9103" 
+      "dse-0.dse.default.svc.cluster.local:9103",
+      "dse-1.dse.default.svc.cluster.local:9103",
+      "dse-2.dse.default.svc.cluster.local:9103",
+      "dse-3.dse.default.svc.cluster.local:9103",
+      "dse-4.dse.default.svc.cluster.local:9103"
     ],
     "labels": {
       "cluster": "Test_Cluster"
