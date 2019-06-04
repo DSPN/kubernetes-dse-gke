@@ -86,7 +86,7 @@ $ kubectl delete -f <your cloud platform choice>/dse-suite.yaml (the same yaml f
 $ kubectl delete pvc -l app=dse (to remove the dynamically provisioned persistent volumes for DSE in step 2.2)
 ```
 
-### 6. (Optional) Delete the GKE cluster
+#### 6. (Optional) Delete the GKE cluster
 If you have created a GKE cluster in step 2.2 above and you no longer need it, you can run a similar command like the following to remove the GKE cluster:
 ```
 $ gcloud container clusters delete k8-12-5-10-gke-n1-std-4 --zone us-west1-b
