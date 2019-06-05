@@ -18,12 +18,16 @@ $ git clone https://github.com/DSPN/kubernetes-dse-gke
 $ cd kubernetes-dse-gke
 
 ConfigMaps for DSE:
-$ kubectl create configmap dse-config --from-file=common/dse/conf-dir/resources/cassandra/conf --from-file=common/dse/conf-dir/resources/dse/conf
+$ kubectl create configmap dse-config \
+--from-file=common/dse/conf-dir/resources/cassandra/conf \
+--from-file=common/dse/conf-dir/resources/dse/conf
 
-$ kubectl create configmap prometheus-conf-config --from-file=common/dse/conf-dir/resources/collectd
+$ kubectl create configmap prometheus-conf-config \
+--from-file=common/dse/conf-dir/resources/collectd
 
 ConfigMap for Prometheus:
-$ kubectl create configmap prometheus-config --from-file=common/metrics/prometheus
+$ kubectl create configmap prometheus-config \
+--from-file=common/metrics/prometheus
 
 ConfigMap for Grafana:
 $ kubectl create configmap grafana-provisioning-datasource-config \
@@ -48,7 +52,9 @@ $ kubectl apply -f local/dse-suite.yaml
 Follow the sample commands below to spin up a GKE cluster if you do not have one already. There are minimum cluster requirements that MUST be met for the deployment to succeed. Please ensure you have a GKE cluster meeting these minimums before deploying. The requirements are >=**7nodes of instance type n1-standard-4 with at least 60GB of disk size for each DSE node**.
 Run the following command to create a similar GKE cluster:
 ```
-$ gcloud container clusters create k8-12-5-10-gke-n1-std-4 --cluster-version=1.12.5-gke.10 --zone us-west1-b --machine-type n1-standard-4  --num-nodes 7
+$ gcloud container clusters create k8-12-5-10-gke-n1-std-4 \
+--cluster-version=1.12.5-gke.10 --zone us-west1-b \
+--machine-type n1-standard-4  --num-nodes 7
 ```
 Run the following command to update a kubeconfig file with appropriate credentials and endpoint information to point kubectl at the GKE cluster created above:
 ```
@@ -74,7 +80,8 @@ $ cqlsh `kubectl get svc dse-ext-lb -o jsonpath='{.status.loadBalancer.ingress[0
 #### 4. Visualize DSE metrics through Grafana
 ```
 Grab the Grafana server external IP:
-$ grafana_ip=`kubectl get svc grafana-ext-lb -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`
+$ grafana_ip=`kubectl get svc grafana-ext-lb \
+-o jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 
 Access the Grafana dashboard via a browser using the output of the following command:
 $ echo http://$grafana_ip:3000/dashboards
