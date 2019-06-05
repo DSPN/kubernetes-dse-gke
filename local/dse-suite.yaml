@@ -96,17 +96,7 @@ spec:
         - containerPort: 9160
           name: thrift-port
         - containerPort: 9103
-          name: port-9103
-        - containerPort: 9999
-          name: spark-job-jmx
-        - containerPort: 18080
-          name: spark-histor
-        - containerPort: 8182
-          name: gremlin-port
-        - containerPort: 5598
-          name: dsefs-public
-        - containerPort: 5599
-          name: dsefs-private
+          name: prom-port
         - containerPort: 61621
           name: ds-agent-port
         volumeMounts:
