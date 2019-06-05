@@ -91,6 +91,8 @@ $ echo http://$grafana_ip:3000/dashboards
 ```
 $ kubectl delete -f <your cloud platform choice>/dse-suite.yaml (the same yaml file you used in step 2 above)
 $ kubectl delete pvc -l app=dse (to remove the dynamically provisioned persistent volumes for DSE in step 2.2)
+$ kubectl delete pvc -l app=prometheus (to remove the dynamically provisioned persistent volumes for Prometheus in step 2.2)
+$ kubectl delete pvc -l app=grafana (to remove the dynamically provisioned persistent volumes for Grafana in step 2.2)
 ```
 
 #### 6. (Optional) Delete the GKE cluster

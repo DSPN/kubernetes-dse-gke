@@ -23,7 +23,7 @@ spec:
   - port: 9042
     name: cql-port
   - port: 9103
-    name: port-9103
+    name: prom-port
   clusterIP: None
   selector:
     app: dse
@@ -95,20 +95,6 @@ spec:
           name: cql-port
         - containerPort: 9160
           name: thrift-port
-        - containerPort: 8983
-          name: solr-port
-        - containerPort: 8984
-          name: solr-int-node
-        - containerPort: 4040
-          name: spark-app-port
-        - containerPort: 7077
-          name: spark-int-node
-        - containerPort: 7080
-          name: spark-m-web
-        - containerPort: 7081
-          name: spark-w-web
-        - containerPort: 8090
-          name: spark-job
         - containerPort: 9103
           name: port-9103
         - containerPort: 9999

@@ -31,7 +31,7 @@ spec:
   - port: 9042
     name: cql-port
   - port: 9103
-    name: port-9103
+    name: prom-port
   clusterIP: None
   selector:
     app: dse
@@ -103,32 +103,8 @@ spec:
           name: cql-port
         - containerPort: 9160
           name: thrift-port
-        - containerPort: 8983
-          name: solr-port
-        - containerPort: 8984
-          name: solr-int-node
-        - containerPort: 4040
-          name: spark-app-port
-        - containerPort: 7077
-          name: spark-int-node
-        - containerPort: 7080
-          name: spark-m-web
-        - containerPort: 7081
-          name: spark-w-web
-        - containerPort: 8090
-          name: spark-job
         - containerPort: 9103
-          name: port-9103
-        - containerPort: 9999
-          name: spark-job-jmx
-        - containerPort: 18080
-          name: spark-histor
-        - containerPort: 8182
-          name: gremlin-port
-        - containerPort: 5598
-          name: dsefs-public
-        - containerPort: 5599
-          name: dsefs-private
+          name: prom-port
         - containerPort: 61621
           name: ds-agent-port
         volumeMounts:
@@ -201,6 +177,8 @@ spec:
       labels:
         app: prometheus
     spec:
+      securityContext:
+        fsGroup: 65534
       containers:
       - name: dse-metric-dashboards-prometheus-demo
         image: "prom/prometheus:v2.4.3"
@@ -221,8 +199,15 @@ spec:
       - name: prometheus-volume
         configMap:
           name: prometheus-config
-      - name: prometheus-data
-        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: prometheus-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast
+      resources:
+        requests:
+          storage: 40Gi
 ---
 apiVersion: v1
 kind: Service
@@ -270,6 +255,8 @@ spec:
       labels:
         app: grafana
     spec:
+      securityContext:
+        fsGroup: 472
       containers:
       - name: dse-grafana-demo
         image: "grafana/grafana:5.3.2"
@@ -296,8 +283,6 @@ spec:
         - name: grafana-dashboards
           mountPath: /var/lib/grafana/dashboards
       volumes:
-      - name: grafana-data
-        emptyDir: {}
       - name: grafana-provisioning-datasources
         configMap:
           name: grafana-provisioning-datasource-config
@@ -307,3 +292,12 @@ spec:
       - name: grafana-dashboards
         configMap:
           name: grafana-dashboards-config
+  volumeClaimTemplates:
+  - metadata:
+      name: grafana-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast
+      resources:
+        requests:
+          storage: 40Gi
