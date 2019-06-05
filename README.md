@@ -89,7 +89,7 @@ $ echo http://$grafana_ip:3000/dashboards
 
 #### 5. Tear down the DSE deployment
 ```
-$ kubectl delete -f <your cloud platform choice>/dse-suite.yaml (the same yaml file you used in step 3 above)
+$ kubectl delete -f <your cloud platform choice>/dse-suite.yaml (the same yaml file you used in step 2 above)
 $ kubectl delete pvc -l app=dse (to remove the dynamically provisioned persistent volumes for DSE in step 2.2)
 ```
 
