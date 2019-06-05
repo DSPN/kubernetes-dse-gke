@@ -62,7 +62,6 @@ spec:
       containers:
       - name: dse
         image: datastax/dse-server:6.7.1
-        args: ["-s", "-k", "-g"]
         imagePullPolicy: IfNotPresent
         resources:
           requests:
