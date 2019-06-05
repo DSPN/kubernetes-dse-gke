@@ -1,9 +1,9 @@
 # kubernetes-dse-gke
 Deploy DataStax Enterprise (DSE) cluster on a Kubernetes cluster (Local & GKE)
 
-This project provides a set of sample Kubernetes yamls to provision DataStax Enterprise in a Kubernetes cluster environment on your local machine or a GKE cluster for experimental only. It uses "default" namespace in Kubernetes and sample cloud provider's storage class definition. You would modify the yamls according to your own deployment requirements such as namespace, storage device type, etc.
+This project provides a set of example Kubernetes yamls to provision DataStax Enterprise in a Kubernetes cluster environment on your local machine or a GKE cluster for development use. It uses "default" namespace in Kubernetes and example cloud provider's storage class definition. You would modify the yamls according to your own deployment requirements such as namespace, storage device type, etc.
 
-Additionally, this repo also includes the new DSE Metrics Collector to aggregate and collect metrics in a meaningful way to provide fast, accurate problem resolution that system administrators can use to troubleshoot problems. The DSE Metrics Collector exports the metrics to a Prometheus server then one can visualize these metrics through a Grafana server.
+Additionally, this repo utilizes DSE Metrics Collector to aggregate and collect metrics. The DSE Metrics Collector exports the metrics to a Prometheus server where users can visualize these metrics through a Grafana server.
 
 #### Prerequisites:
 * Tools including wget, kubectl have already been installed on your machine to execute our yamls.
@@ -68,11 +68,15 @@ $ kubectl apply -f gke/dse-suite.yaml
 
 #### 3. Access the DataStax Enterprise cluster via cqlsh
 
-3.1 You can run the following command to access through a DSE pod (dse-0)
+3.1 You can run the following command to see if pods are running
+```
+$ kubectl get pods
+```
+3.2 You can run the following command to access through a DSE pod (dse-0)
 ```
 $ kubectl exec -it dse-0 cqlsh
 ```
-3.2 You can run the following command to access through a K8 load balacner
+3.3 You can run the following command to access through a K8 load balacner
 ```
 $ cqlsh `kubectl get svc dse-ext-lb -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 ```
