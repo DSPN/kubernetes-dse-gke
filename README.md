@@ -90,6 +90,7 @@ $ grafana_ip=`kubectl get svc grafana-ext-lb \
 Access the Grafana dashboard via a browser using the output of the following command:
 $ echo http://$grafana_ip:3000/dashboards
 ```
+![](./img/grafana_dashboards.png)
 
 #### 5. Tear down the DSE deployment
 ```
