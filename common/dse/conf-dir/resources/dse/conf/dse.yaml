@@ -143,8 +143,9 @@ kerberos_options:
 ##########################
 # LDAP options
 #
-# These are options are used when the com.datastax.bdp.cassandra.auth.LdapAuthenticator
-# is configured as the authenticator in cassandra.yaml. When not set, LDAP authentication is not used.
+# These are options are only used when the com.datastax.bdp.cassandra.auth.DseAuthenticator
+# is configured as the authenticator in cassandra.yaml and 'ldap' scheme is selected in
+# authentication_options and/or role_management_options above.
 
 # ldap_options:
 #     The host name of the LDAP server. LDAP on the same host (localhost) is appropriate only in
@@ -565,7 +566,15 @@ spark_ui_options:
         # More advanced defaults:
         # protocol: TLS
         # algorithm: SunX509
-        # store_type: JKS
+        #
+        # overrides store_type for keystore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+        # for file based keystores prefer PKCS12
+        # keystore_type: JKS
+        #
+        # overrides store_type for truststore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+        # for file based keystores prefer PKCS12
+        # truststore_type: JKS
+        #
         # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
 
 # Configure how the driver and executor processes are created and managed.
@@ -627,6 +636,11 @@ spark_process_runner:
 #     # The maximum number of errors that can occur during AlwaysOn SQL service runner thread
 #     # runs before stopping the service. A service stop requires a manual restart.
 #     runner_max_errors: 10
+#
+#     # The interval in seconds to update heartbeat of AlwaysOn SQL. If heartbeat is not updated
+#     # for more than the period of three times of the interval, AlwaysOn SQL malfunctions.
+#     # AlwaysOn SQL automatically restarts.
+#     heartbeat_update_interval_seconds: 30
 
 ##########################
 # DSE File System (DSEFS) options
@@ -688,6 +702,25 @@ spark_process_runner:
 #     # when this time is exceeded.
 #     query_cache_expire_after_ms: 2000
 #
+#     internode_authentication:
+#         # If enabled, the servers are obliged to authenticate all messages passed between them on private_port.
+#         # The authentication protocol is based on HMAC used with a pre-shared secret available only to DSE cluster
+#         # members (nodes).
+#         # The actual key is never passed between the nodes.
+#         # Typically there is no need to turn this authentication off and it doesn't incur any performance overhead.
+#         # Disabling internode authentication is not recommended, but may be used for debugging purposes
+#         # to issue internode requests manually with curl.
+#         # Limitations:
+#         # Beware that enabling internode authentication does not encrypt the internode traffic.
+#         # Only HTTP headers are protected with HMAC, so MITM attacks are still possible on the message data.
+#         # It is also possible to bypass the authentication if the DSE messaging subsystem was not
+#         # properly secured and the attacker could fake being a part of the DSE cluster in order to obtain
+#         # the secret key. If you need stronger security, please configure SSL.
+#         enabled: true
+#
+#         # Algorithm used for key encryption:
+#         algorithm: HmacSHA256
+#
 #     gossip_options:
 #         # The delay between gossip rounds
 #         round_delay_ms: 2000
@@ -711,14 +744,14 @@ spark_process_runner:
 #         # How long to wait for the server rest call to complete
 #         server_request_timeout_ms: 300000
 #
-#         # How long RestClient is going to wait until idle connection is closed, 0 if disabled.
+#         # Wait time, in milliseconds, before closing idle RestClient - server connection. 0 if disabled.
 #         # If RestClient does not close connection after this timeout, the server closes the connection after
 #         # 2 * idle_connection_timeout_ms milliseconds.
 #         idle_connection_timeout_ms: 60000
 #
-#         # How long to wait until idle internode connection is closed, 0 if disabled.
-#         # The internode connections are mainly used to exchange data during replication. Heavily utilized DSEFS
-#         # clusters should not make this value lower.
+#         # Wait time, in milliseconds, before closing idle internode connection. The internode connections are
+#         # mainly used to exchange data during replication. Do not set lower than the default value for heavily
+#         # utilized DSEFS clusters.
 #         internode_idle_connection_timeout_ms: 120000
 #
 #         # Maximum number of connections to a given host per single CPU core. DSEFS keeps a connection pool for
@@ -750,6 +783,15 @@ spark_process_runner:
 #         # To disable the preference for allocating blocks on the coordinator node, set these values to 0 MB and 1.0.
 #         overflow_margin_mb: 1024
 #         overflow_factor: 1.05
+
+# Insightful Monitoring(Insights) Options
+# enable insights_options.
+# insights_options:
+#     # Directory to store insights
+#     data_dir: /var/lib/cassandra/insights_data
+#
+#     # Directory to store insight logs
+#     log_dir: /var/log/cassandra/
 
 ##########################
 # Audit logging options

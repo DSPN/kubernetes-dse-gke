@@ -6,7 +6,7 @@
 
 # The name of the cluster. This is mainly used to prevent machines in
 # one logical cluster from joining another.
-cluster_name: 'My_Cluster'
+cluster_name: 'Test Cluster'
 
 # The number of tokens randomly assigned to this node on the ring.
 # The higher the token count is relative to other nodes, the larger the proportion of data
@@ -21,7 +21,7 @@ cluster_name: 'My_Cluster'
 #
 # If you already have a cluster with 1 token per node, and want to migrate to
 # multiple tokens per node, see http://wiki.apache.org/cassandra/Operations
-num_tokens: 128
+# num_tokens: 128
 
 # Triggers automatic allocation of num_tokens tokens for this node. The allocation
 # algorithm attempts to choose tokens in a way that optimizes replicated load over
@@ -149,7 +149,7 @@ role_manager: com.datastax.bdp.cassandra.auth.DseRoleManager
 # Enable this feature only after appropriate user permissions are granted.
 #
 # See Managing keyspace and table permissions at
-# http://http://docsreview.datastax.lan/en/dse/6.0/dse-admin/datastax_enterprise/security/secDataPermission.html
+# https://docs.datastax.com/en/dse/6.0/dse-admin/datastax_enterprise/security/secSystemKeyspaces.html
 #
 # Default: false
 system_keyspaces_filtering: false
@@ -403,19 +403,28 @@ seed_provider:
       parameters:
           # seeds is actually a comma-delimited list of addresses.
           # Ex: "<ip1>,<ip2>,<ip3>"
-          - seeds: "dse-0.dse.default.svc.cluster.local,dse-1.dse.default.svc.cluster.local,dse-2.dse.default.svc.cluster.local"
+          - seeds: "127.0.0.1"
 
-# Maximum memory to use for SSTable chunk cache and buffer pooling.
-# 32 MB of this memory are reserved for pooling buffers, the rest is used as a
-# cache that holds uncompressed sstable chunks.
-# When not set, the default is calculated as 1/3 of max direct memory (by default, max direct memory
-# is up to total system memory).
-# This pool is allocated off-heap, so is in addition to the memory allocated
-# for heap. The cache also has on-heap overhead which is roughly 128 bytes
-# per chunk (i.e. 0.2% of the reserved size if the default 64k chunk size is
-# used).
-# Memory is allocated only when needed.
+# Maximum memory used for file buffers that are stored in the file cache, also
+# known as the chunk cache. This is used as a cache that holds uncompressed
+# sstable chunks, potentially for a very long time (until the sstable is obsoleted
+# by compaction or until the data is evicted by the cache).
+# When not set, the default is calculated as 1/4  of (system RAM - max heap).
+# This pool is allocated off-heap but the chunk cache also has on-heap overhead
+# which is roughly 120 bytes per entry.
+# Memory is allocated only when needed but is not released.
 # file_cache_size_in_mb: 4096
+
+# In addition to buffers stored in the file cache, buffers are also used for transient
+# operations such as reading sstables (when the data to be read is larger than the file cache buffer size),
+# reading hints or CRC files. Buffers used for such operations are kept in memory
+# in order to avoid continuous allocations, up to this limit.
+# A buffer is typically used by a read operation and then returned to this pool when the operation is finished
+# so that it can be reused by other operations.
+# When not set the default is 2M per core plus 2M for all other threads capped at 128 MiB.
+# Memory is allocated only when needed but is not released.
+# direct_reads_size_in_mb: 128
+
 
 # The strategy for optimizing disk read.
 # Possible values are:
@@ -426,9 +435,9 @@ seed_provider:
 # Total permitted memory to use for memtables. The database will stop
 # accepting writes when the limit is exceeded until a flush completes,
 # and will trigger a flush based on memtable_cleanup_threshold
-# If omitted, the calculated value for both settings is 1/4 the size of the heap.
-# memtable_heap_space_in_mb: 2048
-# memtable_offheap_space_in_mb: 2048
+# If omitted, the calculated value is 1/4 the size of the heap.
+# memtable_space_in_mb: 2048
+
 
 # Ratio of occupied non-flushing memtable size to total permitted size
 # that will trigger a flush of the largest memtable. Larger mct will
@@ -450,7 +459,7 @@ seed_provider:
 #
 # offheap_objects
 #    off heap objects
-memtable_allocation_type: heap_buffers
+memtable_allocation_type: offheap_objects
 
 # Disk usage threshold that will trigger the database to reclaim some space
 # used by the commit log files.
@@ -514,20 +523,6 @@ memtable_allocation_type: heap_buffers
 # or experiencing backpressure, we check at the following interval to see if any
 # new space for cdc-tracked tables has been made available. Default to 250ms
 # cdc_free_space_check_interval_ms: 250
-
-# A fixed memory pool size in MB for for SSTable index summaries. If left
-# empty, this will default to 5% of the heap size. If the memory usage of
-# all index summaries exceeds this limit, SSTables with low read rates will
-# shrink their index summaries in order to meet this limit.  However, this
-# is a best-effort process. In extreme conditions the database may need to use
-# more than this amount of memory.
-index_summary_capacity_in_mb:
-
-# How frequently index summaries should be resampled.  This is done
-# periodically to redistribute memory from the fixed-size pool to sstables
-# proportional their recent read rates.  Setting to -1 will disable this
-# process, leaving existing index summaries at their current sampling level.
-index_summary_resize_interval_in_minutes: 60
 
 # Whether to enable periodic fsync() when doing sequential writing. When enabled, fsync() at intervals
 # force the operating system to flush the dirty
@@ -742,6 +737,19 @@ compaction_throughput_mb_per_sec: 16
 # Values <= 0 will disable this feature.
 sstable_preemptive_open_interval_in_mb: 50
 
+# With pick_level_on_streaming set to true, streamed-in sstables of tables using
+# LCS (leveled comaction strategy) will be placed in the same level as on the
+# source node (up-leveling may happen though).
+#
+# The previous behavior, and with pick_level_on_streaming set to false, the
+# incoming sstables are placed in level 0.
+#
+# For operational tasks like 'nodetool refresh' or replacing a node, setting
+# pick_level_on_streaming to true can save a lot of compaction work.
+#
+# Default is false
+# pick_level_on_streaming: false
+
 # Throttle, in megabits per seconds, for the throughput of all outbound streaming file transfers
 # on a node. The database does mostly sequential I/O when streaming data during
 # bootstrap or repair which can saturate the network connection and degrade
@@ -819,6 +827,13 @@ cross_node_timeout: false
 # When unset, the internal value is 8.
 # phi_convict_threshold: 8
 
+# When a tcp connection to another node is established, cassandra sends an echo
+# request to see if the connection is actually usable.  If an echo reply is not
+# heard after this many tries, the connection will be destroyed and
+# reestablished to try again. Each attempt roughly translates to 1 second.
+#
+# echo_attempts_before_reset: 10
+
 # endpoint_snitch -- A class that implements the IEndpointSnitch interface. The database uses the
 # snitch to locate nodes and route requests. Use only snitch implementations that are bundled with DSE.
 #
@@ -879,8 +894,7 @@ cross_node_timeout: false
 #    Analytics, and Search nodes into their separate datacenters.
 #    Appropriate only for Development deployments.
 #
-#endpoint_snitch: com.datastax.bdp.snitch.DseSimpleSnitch
-endpoint_snitch: GossipingPropertyFileSnitch
+endpoint_snitch: com.datastax.bdp.snitch.DseSimpleSnitch
 
 # How often to perform the more expensive part of host score
 # calculation. Use care when reducing this interval, score calculation is CPU intensive.
@@ -914,8 +928,12 @@ dynamic_snitch_badness_threshold: 0.1
 #
 # The passwords used in these options must match the passwords used when generating
 # the keystore and truststore.  For instructions on generating these files, see:
-# http://download.oracle.com/javase/6/docs/technotes/guides/security/jsse/JSSERefGuide.html#CreateKeystore
+# https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/JSSERefGuide.html#CreateKeystore
 #
+# KeyStore types can be JKS, JCEKS, PKCS12 or PKCS11
+# For PKCS11 the "java.security" file must be updated to register the PKCS11 JNI binding
+# and the relevant native binaries installed.
+# For more information see: https://docs.oracle.com/javase/8/docs/technotes/guides/security/p11guide.html
 server_encryption_options:
     internode_encryption: none
     keystore: resources/dse/conf/.keystore
@@ -925,7 +943,16 @@ server_encryption_options:
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509
-    # store_type: JKS
+    #
+    # overrides store_type for keystore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+    # for file based keystores prefer PKCS12
+    # keystore_type: JKS
+    #
+    # overrides store_type for truststore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+    # for file based keystores prefer PKCS12
+    # truststore_type: JKS
+    #
+    # overrides store_type for truststore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
     # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
     # require_client_auth: false
     # require_endpoint_verification: false
@@ -944,7 +971,15 @@ client_encryption_options:
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509
-    # store_type: JKS
+    #
+    # overrides store_type for keystore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+    # for file based keystores prefer PKCS12
+    # keystore_type: JKS
+    #
+    # overrides store_type for truststore, valid types can be JKS, JCEKS, PKCS12 or PKCS11
+    # for file based keystores prefer PKCS12
+    # truststore_type: JKS
+    #
     # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
 
 # internode_compression controls whether traffic between nodes is
@@ -971,19 +1006,30 @@ inter_dc_tcp_nodelay: false
 tracetype_query_ttl: 86400
 tracetype_repair_ttl: 604800
 
-# If unset, all GC Pauses greater than gc_log_threshold_in_ms will log at
-# INFO level
+# The default Windows kernel timer and scheduling resolution is 15.6ms for power conservation.
+# Lowering this value on Windows can provide much tighter latency and better throughput, however
+# some virtualized environments may see a negative performance impact from changing this setting
+# below their system default. The sysinternals 'clockres' tool can confirm your system's default
+# setting.
+windows_timer_interval: 1
+
 # UDFs (user defined functions) are disabled by default.
+#
 # As of Cassandra 3.0 there is a sandbox in place that should prevent execution of evil code.
 enable_user_defined_functions: false
 
 # Enables scripted UDFs (JavaScript UDFs).
 # Java UDFs are always enabled, if enable_user_defined_functions is true.
-# Enable this option to be able to use UDFs with "language javascript" or any custom JSR-223 provider.
+# Enable this option to be able to use UDFs with "language javascript".
 # This option has no effect, if enable_user_defined_functions is false.
+#
+# Note that JavaScript UDFs are noticeable slower and produce more garbage on the heap than Java UDFs
+# and can therefore negatively affect overall database performance.
 enable_scripted_user_defined_functions: false
 
 # Optionally disable asynchronous UDF execution.
+# Note: Java UDFs are not run asynchronously.
+#
 # Disabling asynchronous UDF execution also implicitly disables the security-manager!
 # By default, asynchronous UDF execution is enabled to be able to detect UDFs that run too long / forever and be
 # able to fail fast - i.e. stop the Cassandra daemon, which is currently the only appropriate approach to
@@ -994,12 +1040,41 @@ enable_scripted_user_defined_functions: false
 # subjected to the afforementioned security caveats.
 enable_user_defined_functions_threads: true
 
-# The default Windows kernel timer and scheduling resolution is 15.6ms for power conservation.
-# Lowering this value on Windows can provide much tighter latency and better throughput, however
-# some virtualized environments may see a negative performance impact from changing this setting
-# below their system default. The sysinternals 'clockres' tool can confirm your system's default
-# setting.
-windows_timer_interval: 1
+# Time in microseconds (CPU time) after a warning will be emitted to the log and
+# to the client that a UDF runs too long.
+# Java-UDFs will always emit a warning, script-UDFs only if
+# enable_user_defined_functions_threads is set to true.
+user_defined_function_warn_micros: 500
+
+# Time in microseconds (CPU time) after a fatal UDF run-time situation is detected.
+# For Java-UDFs the function is safely aborted.
+# For script-UDFs the action according to user_function_timeout_policy will take place.
+# Java-UDFs will always throw an exception, script-UDFs only if
+# enable_user_defined_functions_threads is set to true.
+user_defined_function_fail_micros: 10000
+
+# If a Java UDF allocates more than user_defined_function_warn_heap_mb on the heap,
+# a warning will be emitted to the log and the client.
+# Java-UDFs will always emit a warning, script-UDFs only if
+# enable_user_defined_functions_threads is set to true.
+user_defined_function_warn_heap_mb: 200
+
+# UDFs that allocate more than user_defined_function_fail_heap_mb, will fail.
+# For Java-UDFs the function is safely aborted.
+# For script-UDFs the action according to user_function_timeout_policy will take place.
+# Java-UDFs will always throw an exception, script-UDFs only if
+# enable_user_defined_functions_threads is set to true.
+user_defined_function_fail_heap_mb: 500
+
+# Defines what to do when a script-UDF ran longer than user_defined_function_fail_timeout.
+# (Only valid, if enable_user_defined_functions_threads is set to true)
+# Possible options are:
+# - 'die' - i.e. it is able to emit a warning to the client before the Cassandra Daemon
+#   will shut down.
+# - 'die_immediate' - shut down C* daemon immediately (effectively prevent the chance that
+#   the client will receive a warning).
+# - 'ignore' - just log - the most dangerous option.
+user_function_timeout_policy: die
 
 
 # Enables encrypting data at-rest (on disk). Different key providers are supported, but the default KSKeyProvider reads from
